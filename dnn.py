@@ -50,6 +50,8 @@ class DNN(tf.keras.Model):
         self.activations = activations
         self.seed = seed
         
+        self.exp = None
+        
         self.flatten = tf.keras.layers.Flatten()
         self.fc_act = self._build_act()
         
