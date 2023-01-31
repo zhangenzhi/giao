@@ -4,7 +4,7 @@ from tensorflow_examples.models.pix2pix import pix2pix
 class UNet:
     def __init__(self, input_shape=[128, 128, 3]) -> None:
         
-        OUTPUT_CLASSES = 1
+        OUTPUT_CLASSES = input_shape[-1]
     
         self.input_shape = input_shape
         base_model = tf.keras.applications.MobileNetV2(input_shape=self.input_shape, include_top=False)
