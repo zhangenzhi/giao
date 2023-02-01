@@ -1,9 +1,8 @@
 import tensorflow as tf
-from tensorflow_examples.models.pix2pix import pix2pix
 
 class UNet:
     def __init__(self, input_shape=[128, 128, 3]) -> None:
-        
+        from tensorflow_examples.models.pix2pix import pix2pix
         OUTPUT_CLASSES = input_shape[-1]
     
         self.input_shape = input_shape
