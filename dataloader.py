@@ -93,17 +93,14 @@ class MnistDataLoader:
         x_train = np.reshape(x_train, [60000,28,28,1])
         x_test = np.reshape(x_test, [10000,28,28,1])
         if self.dataloader_args['da']:
-            x_train,x_test = normalization(x_train, x_test)
+            x_train, x_test = normalization(x_train, x_test)
         
         #on-hot
         y_train = tf.keras.utils.to_categorical(y_train, 10)
         y_test = tf.keras.utils.to_categorical(y_test, 10)
 
         data_augmentation = tf.keras.Sequential([
-                    preprocessing.RandomContrast(0.1),
-                    preprocessing.RandomTranslation(height_factor=0.1, width_factor=0.1),
-                    preprocessing.RandomCrop(32, 32),
-                    preprocessing.RandomZoom(0.1)
+                    preprocessing.Resizing(32,32)
                     ])
 
         full_size = len(x_train)
@@ -132,7 +129,10 @@ class MnistDataLoader:
         test_dataset = test_dataset.shuffle(test_size)
         # valid_dataset = test_dataset.take(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
         # test_dataset = test_dataset.skip(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
-        test_dataset = test_dataset.batch(self.dataloader_args['batch_size']).repeat(epochs)
+        test_dataset = test_dataset.batch(self.dataloader_args['batch_size'])
+        if self.dataloader_args['da']:
+            test_dataset = test_dataset.map(lambda x:{'inputs':data_augmentation(x['inputs']),'labels': x['labels']}, num_parallel_calls=16)
+        test_dataset = test_dataset.repeat(epochs)
         valid_dataset = test_dataset
 
         return train_dataset, valid_dataset, test_dataset

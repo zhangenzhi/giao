@@ -99,7 +99,7 @@ class CUNet:
     
     def __init__(self, input_shape=[32,32,3]) -> None:
         self.input_shape = input_shape
-        self.OUTPUT_CHANNELS = 3
+        self.OUTPUT_CHANNELS = input_shape[-1]
         self.model = self.Generator()
     
     def Generator(self):
@@ -110,11 +110,11 @@ class CUNet:
             downsample(64, 4),  # (batch_size, 8, 8, 128)
             downsample(128, 4),  # (batch_size, 4, 4, 256)
             downsample(256, 4),  # (batch_size, 2, 2, 512)
-            downsample(512, 4),  # (batch_size, 1, 1, 512)
+            # downsample(512, 4),  # (batch_size, 1, 1, 512)
         ]
 
         up_stack = [
-            upsample(512, 4, apply_dropout=True),  # (batch_size, 2, 2, 1024)
+            # upsample(512, 4, apply_dropout=True),  # (batch_size, 2, 2, 1024)
             upsample(256, 4, apply_dropout=True),  # (batch_size, 4, 4, 1024)
             upsample(128, 4),  # (batch_size, 8, 8, 512)
             upsample(64, 4),  # (batch_size, 16, 16, 256)
