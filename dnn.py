@@ -83,12 +83,12 @@ class DNN(tf.keras.Model):
         
         x = inputs
         x = self.flatten(x)
-        pattern_constrain = None
+        feat_constrain = None
         
         for layer, act in zip(self.fc_layers, self.fc_act):
             x = layer(x)
             x = act(x)
-            if pattern_constrain == None:
-                pattern_constrain = x
+            if feat_constrain == None:
+                feat_constrain = x
             
-        return x,pattern_constrain
+        return x, feat_constrain

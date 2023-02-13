@@ -15,7 +15,7 @@ norm_groups = 8  # Number of groups used in GroupNormalization layer
 learning_rate = 2e-4
 
 img_size = 64
-img_channels = 3
+img_channels = 1
 clip_min = -1.0
 clip_max = 1.0
 
@@ -165,7 +165,7 @@ def TimeMLP(units, activation_fn=keras.activations.swish):
 
 class DiffusionUnet:
     def __init__(self, img_size=32, img_channels=3, widths=widths) -> None:
-        self.model = self.build_model(img_size=img_size, img_channels=3,
+        self.model = self.build_model(img_size=img_size, img_channels=img_channels,
                                      widths=widths, has_attention=has_attention)
 
     def __call__(self, inputs):
@@ -264,13 +264,13 @@ class DiffusionUnet:
         x = layers.BatchNormalization()(x)
         # x = layers.GroupNormalization(groups=norm_groups)(x)
         x = activation_fn(x)
-        x = layers.Conv2D(3, (3, 3), padding="same", kernel_initializer=kernel_init(0.0))(x)
+        x = layers.Conv2D(img_channels, (3, 3), padding="same", kernel_initializer=kernel_init(0.0))(x)
         # return keras.Model([image_input, time_input], x, name="unet")
         return keras.Model([image_input], x, name="unet")
 
 if __name__ == "__main__":
-    du = DiffusionUnet()
+    du = DiffusionUnet(img_channels=1)
     time = tf.constant([1,1,1])
-    inputs = tf.random.uniform(shape=(128,32,32,3))
+    inputs = tf.random.uniform(shape=(128,32,32,1))
     res = du(inputs=[inputs])
     print(res)
