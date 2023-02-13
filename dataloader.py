@@ -113,7 +113,7 @@ class MnistDataLoader:
         full_dataset = full_dataset.shuffle(full_size)
 
         train_dataset = full_dataset.take(train_size)
-        train_dataset = train_dataset.batch(self.dataloader_args['batch_size'])
+        train_dataset = train_dataset.batch(self.dataloader_args['batch_size'], drop_remainder=True)
         # data augmentation
         if self.dataloader_args['da']:
             train_dataset = train_dataset.map(lambda x:{'inputs':data_augmentation(x['inputs']),'labels': x['labels']}, num_parallel_calls=16)

@@ -91,4 +91,4 @@ class DNN(tf.keras.Model):
             if pattern_constrain == None:
                 pattern_constrain = x
             
-        return x,pattern_constrain
+        return x
