@@ -1,8 +1,10 @@
 import random
 import fnmatch, os
 import numpy as np
+import tensorflow as tf
 from tensorflow.io import gfile
 from scipy import io as scipy_io
+import matplotlib.pyplot as plt
 
 import os
 import json
@@ -10,6 +12,36 @@ import tempfile
 import string
 import ruamel.yaml as yaml
 
+def display(display_list, save_name=None, show=False):
+    plt.figure(figsize=(15, 15))
+
+    title = ['Input Image', 'Predicted Image', 'Test Image']
+
+    for i in range(len(display_list)):
+        plt.subplot(1, len(display_list), i+1)
+        plt.title(title[i])
+        plt.imshow(tf.keras.utils.array_to_img(display_list[i]))
+        plt.axis('off')
+        
+    if save_name!=None:
+        plt.savefig("./result/{}.png".format(save_name))
+        
+    if show:
+        plt.show()
+
+def plot_train(display_list, save_name=None, show=False):
+    # plt.figure(figsize=(10, 10))
+    label = ['Train', 'Test']
+    for i in range(len(display_list)):
+        plt.plot(display_list[i], label=label[i])
+        plt.legend()
+        
+    if save_name!=None:
+        plt.savefig("./result/{}.png".format(save_name))
+        
+    if show:
+        plt.show()
+  
 def check_mkdir(path):
     if not os.path.exists(path=path):
         print("no such path: {}, but we made.".format(path))

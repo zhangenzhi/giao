@@ -1,4 +1,5 @@
 model_opt
+result
 .ipynb*
 __pycache__
 .vscode

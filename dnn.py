@@ -91,4 +91,4 @@ class DNN(tf.keras.Model):
             if feat_constrain == None:
                 feat_constrain = x
             
-        return x, feat_constrain
+        return x
