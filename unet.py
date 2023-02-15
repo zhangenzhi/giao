@@ -100,6 +100,7 @@ class CUNet:
     def __init__(self, input_shape=[32,32,3]) -> None:
         self.input_shape = input_shape
         self.OUTPUT_CHANNELS = input_shape[-1]
+        self.latent_phase = None
         self.model = self.Generator()
     
     def Generator(self):
@@ -136,8 +137,10 @@ class CUNet:
             x = down(x)
             skips.append(x)
 
+        latent_phase = skips[0]
+        
         skips = reversed(skips[:-1])
-
+        
         # Upsampling and establishing the skip connections
         for up, skip in zip(up_stack, skips):
             x = up(x)
@@ -145,7 +148,7 @@ class CUNet:
 
         x = last(x)
 
-        return tf.keras.Model(inputs=inputs, outputs=x)
+        return tf.keras.Model(inputs=inputs, outputs=(x,latent_phase))
     
     def plot_model(self):
         tf.keras.utils.plot_model(self.model, show_shapes=True)
