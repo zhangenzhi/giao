@@ -28,6 +28,8 @@ def display(display_list, save_name=None, show=False):
         
     if show:
         plt.show()
+        
+    plt.close()
 
 def plot_train(display_list, save_name=None, show=False):
     # plt.figure(figsize=(10, 10))

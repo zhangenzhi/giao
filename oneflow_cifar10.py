@@ -2,14 +2,16 @@ import os
 import random
 import numpy as np
 import tensorflow as tf
+
 from easydict import EasyDict as edict
+import matplotlib.pyplot as plt
 
 # modules
-from utiliz import check_mkdir, display
-from dataloader import MnistDataLoader
+from dataloader import Cifar10DataLoader, MnistDataLoader
 from dnn import DNN
 from unet import CUNet
 from diffusion import DiffusionUnet
+from utiliz import display
   
 train_loss_fn = tf.keras.losses.CategoricalCrossentropy()
 mt_loss_fn = tf.keras.metrics.Mean()
@@ -28,7 +30,7 @@ GIAO_BATCH = 8
 giao_optimizer = tf.keras.optimizers.Adam(1e-4)
 giao_loss_fn = tf.keras.losses.MeanSquaredError()
 
-# @tf.function(experimental_relax_shapes=True, experimental_compile=None)
+@tf.function(experimental_relax_shapes=True, experimental_compile=None)
 def _train_step(model, inputs, labels):
     with tf.GradientTape() as tape:
         predictions = model(inputs)
@@ -58,7 +60,9 @@ def collect_model_operator(model_args, variables, loss):
     return opt, loss
 
 
-def obtain_model_opts(model, dataloader, iter_train, test_data, sample_start=30, sample_gap=20):
+def obtain_model_opts(model, model_args, 
+                      dataloader, iter_train, test_data, 
+                      sample_start=30, sample_gap=20):
     model_opt = []
     opt_label = []
     records = edict({'epoch':[],'train_loss':[],'test_loss':[],'train_metric':[],'test_metric':[]})
@@ -73,7 +77,7 @@ def obtain_model_opts(model, dataloader, iter_train, test_data, sample_start=30,
             if (e*dataloader.info.train_step + step)%sample_gap ==0:
                 if e >= sample_start:
                     test_loss, test_acc, opt_loss = _test_step(model=model, inputs=test_data["inputs"], labels=test_data["labels"])
-                    opt, label = collect_model_operator(model.trainable_variables, opt_loss)
+                    opt, label = collect_model_operator(model_args, model.trainable_variables, opt_loss)
                     model_opt.append(opt)
                     opt_label.append(label)
                     
@@ -87,7 +91,8 @@ def obtain_model_opts(model, dataloader, iter_train, test_data, sample_start=30,
         for k,v in records.items():
             log += "{}: {} ".format(k,v[-1])
         print(log)
-        return model_opt, opt_label
+        [reg(test_data["inputs"]) for reg in model_opt] # init model reg
+    return model_opt, opt_label
 
 def init_model_opt(raw_model_opt, test_data):
     
@@ -123,24 +128,31 @@ def load_model_opt(path="./model_opt", test_data=None):
     init_model_opt(offline_model_opt, test_data)
     return offline_model_opt
 
+# @tf.function(experimental_relax_shapes=True, experimental_compile=None)
 def _opt_train_step(unet, regs, train_inputs, train_labels, labels):
     losses = []
+    
     with tf.GradientTape() as tape:
+        pseudo_inputs, train_latent_phase = unet(train_inputs)
+        _, pseudo_latent_phase= unet(pseudo_inputs, training=False)
+      
         for idx in range(len(regs)):
-            pseudo_inputs = unet(train_inputs)
             predictions = regs[idx](pseudo_inputs)
-            l1_loss = tf.reduce_mean(tf.abs(pseudo_inputs - train_inputs)) * 100
+            l1_loss = tf.reduce_mean(tf.abs(pseudo_inputs - train_inputs)) * 16
+            phase_loss = tf.reduce_mean(tf.square(pseudo_latent_phase - train_latent_phase)) * 0
             reg_loss = opt_loss_fn(train_labels, predictions)
-            # giao_loss = giao_loss_fn(labels[idx], reg_loss)
-            giao_loss =  tf.abs(labels[idx]-reg_loss) + l1_loss
+            giao_loss =  tf.abs(labels[idx]-reg_loss) + phase_loss + l1_loss
             losses.append(giao_loss)
         loss = tf.reduce_mean(losses)
         grad = tape.gradient(loss, unet.model.trainable_variables)
         
+        
     giao_optimizer.apply_gradients(zip(grad, unet.model.trainable_variables))
-    return loss, pseudo_inputs
+    return loss, l1_loss, phase_loss, pseudo_inputs
 
-def obtain_da_model_opts(unet, model, dataloader, iter_train, test_data, sample_start=0, sample_gap=3, epochs=3):
+def obtain_da_model_opts(unet, model, model_args,
+                         dataloader, iter_train, test_data, 
+                         sample_start=0, sample_gap=3, epochs=3):
     model_opt = []
     opt_label = []
     records = edict({'epoch':[],'train_loss':[],'test_loss':[],'train_metric':[],'test_metric':[]})
@@ -151,16 +163,16 @@ def obtain_da_model_opts(unet, model, dataloader, iter_train, test_data, sample_
         test_metrics.reset_states()
         for step in range(dataloader.info.train_step):
             data = iter_train.get_next()
-            da_data_inputs = unet(data["inputs"])
+            da_data_inputs,_ = unet(data["inputs"])
             train_loss, acc = _train_step(model=model, inputs=da_data_inputs, labels=data["labels"])
             if (e*dataloader.info.train_step + step)%sample_gap == 0:
                 if e >= sample_start:
                     test_loss, test_acc, opt_loss = _test_step(model=model, inputs=test_data["inputs"], labels=test_data["labels"])
-                    opt, label = collect_model_operator(model.trainable_variables, opt_loss)
+                    opt, label = collect_model_operator(model_args, model.trainable_variables, opt_loss)
                     model_opt.append(opt)
                     opt_label.append(label)
                     
-        test_loss, test_acc, _ = _test_step(inputs=test_data["inputs"], labels=test_data["labels"])
+        test_loss, test_acc, _ = _test_step(model=model, inputs=test_data["inputs"], labels=test_data["labels"])
         records.epoch        += [e]
         records.train_loss   += [mt_loss_fn.result().numpy()]
         records.train_metric += [train_metrics.result().numpy()]
@@ -170,39 +182,46 @@ def obtain_da_model_opts(unet, model, dataloader, iter_train, test_data, sample_
         for k,v in records.items():
             log += "{}: {} ".format(k,v[-1])
         print(log)
-        return model_opt, opt_label
+        [reg(test_data["inputs"]) for reg in model_opt] # init model reg
+    return model_opt, opt_label
         
 def giao(unet, model,  model_args, dataloader, iter_train, test_data):
     
     # init training
     model_opt, opt_label = obtain_model_opts(model=model, model_args=model_args, 
-                                             dataloader=dataloader, sample_start=3, sample_gap=10) 
+                                             iter_train=iter_train, test_data=test_data,
+                                             dataloader=dataloader, sample_start=0, sample_gap=100) 
     print(len(model_opt))
     
     #GIAO
     for t in range(100):
         #Generator training
-        TRAIN_STEP = 400
+        TRAIN_STEP = 1000 if t == 0 else 400
         for j in range(TRAIN_STEP):
             train_data = iter_train.get_next()
             idx = random.sample(range(len(model_opt)), GIAO_BATCH)
             labels = [opt_label[i] for i in idx]
             regs = [model_opt[i] for i in idx]
-            giao_train_loss, pseudo_inputs = _opt_train_step(unet, regs, train_data["inputs"], test_data["labels"], labels)
+            giao_train_loss, l1_loss, phase_loss, pseudo_inputs = _opt_train_step(unet, regs, train_data["inputs"], test_data["labels"], labels)
             if j % 100 == 0:
-                print("Epoch:{} GIAO Train Loss:{}".format(j, giao_train_loss))
+                print("Step:{} GIAO Loss:{}, L1 Loss:{}, Phase Loss:{}".format(t*TRAIN_STEP + j, 
+                                                                               giao_train_loss-l1_loss-phase_loss, 
+                                                                               l1_loss, phase_loss))
                 save_name = "{}_{}_{}".format(t,j,giao_train_loss) 
                 display([train_data["inputs"].numpy()[0], pseudo_inputs.numpy()[0], test_data["inputs"][0]], save_name=save_name)
                 
         # Train on Dasamples
-        model_opt, opt_label = obtain_da_model_opts(unet=unet, model=model, model_args=model_args, 
-                                                    sample_start=0, sample_gap=3, epochs=3)
+        new_model_opt, new_opt_label = obtain_da_model_opts(unet=unet, model=model, model_args=model_args, 
+                                                    iter_train=iter_train, test_data=test_data, dataloader=dataloader,
+                                                    sample_start=0, sample_gap=10, epochs=3)
+        model_opt += new_model_opt
+        opt_label += new_opt_label
         print(len(model_opt))
     
 def main():
     # dataset
-    dataloader_args = edict({"batch_size": 128, "epochs": 20, "da": True})
-    dataloader = MnistDataLoader(dataloader_args=dataloader_args)
+    dataloader_args = edict({"batch_size": 128, "epochs": 50, "da": False})
+    dataloader = Cifar10DataLoader(dataloader_args=dataloader_args)
     train_dataset, valid_dataset, test_dataset = dataloader.load_dataset()
 
     #Envioroment
@@ -211,7 +230,7 @@ def main():
     
     #Generator
     # unet = UNet(input_shape=[32, 32, 3])
-    unet = CUNet(input_shape=[32, 32, 1])
+    unet = CUNet(input_shape=[32, 32, 3])
     # unet = DiffusionUnet()
     
     iter_train = iter(train_dataset)
@@ -219,7 +238,8 @@ def main():
     
     test_data =  iter_test.get_next()
     
-    giao(unet=unet, model=model, model_args=model_args, dataloader=dataloader, iter_train=iter_train, test_data=test_data)
+    giao(unet=unet, model=model, model_args=model_args, 
+         dataloader=dataloader, iter_train=iter_train, test_data=test_data)
 
 if __name__== "__main__":
     main()

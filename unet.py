@@ -137,7 +137,8 @@ class CUNet:
             x = down(x)
             skips.append(x)
 
-        latent_phase = skips[0]
+        # latent_phase = skips[0]
+        latent_phase = skips[-1]
         
         skips = reversed(skips[:-1])
         
@@ -153,5 +154,5 @@ class CUNet:
     def plot_model(self):
         tf.keras.utils.plot_model(self.model, show_shapes=True)
     
-    def __call__(self, inputs):
-        return self.model(inputs)
+    def __call__(self, inputs, training=None):
+        return self.model(inputs, training=training)

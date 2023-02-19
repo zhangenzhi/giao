@@ -25,8 +25,8 @@ class Cifar10DataLoader:
         
         # x_train = np.reshape(x_train, [50000,32,32,3])
         # x_test = np.reshape(x_test, [10000,32,32,3])
-        if self.dataloader_args['da']:
-            x_train,x_test = normalization(x_train, x_test)
+        # if self.dataloader_args['da']:
+        x_train,x_test = normalization(x_train, x_test)
         
         #on-hot
         y_train = tf.keras.utils.to_categorical(y_train, 10)
@@ -65,7 +65,7 @@ class Cifar10DataLoader:
         test_dataset = test_dataset.shuffle(test_size)
         # valid_dataset = test_dataset.take(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
         # test_dataset = test_dataset.skip(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
-        test_dataset = test_dataset.batch(self.dataloader_args['batch_size']).repeat(epochs)
+        test_dataset = test_dataset.batch(self.dataloader_args['batch_size'], drop_remainder=True).repeat(epochs)
         valid_dataset = test_dataset
 
         return train_dataset, valid_dataset, test_dataset
@@ -162,7 +162,7 @@ class MnistDataLoader:
         test_dataset = test_dataset.shuffle(test_size)
         # valid_dataset = test_dataset.take(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
         # test_dataset = test_dataset.skip(valid_size).batch(self.dataloader_args['batch_size']).repeat(epochs)
-        test_dataset = test_dataset.batch(self.dataloader_args['batch_size'])
+        test_dataset = test_dataset.batch(self.dataloader_args['batch_size'], drop_remainder=True)
         if self.dataloader_args['da']:
             test_dataset = test_dataset.map(lambda x:{'inputs':data_augmentation(x['inputs']),'labels': x['labels']}, num_parallel_calls=16)
         test_dataset = test_dataset.repeat(epochs)
