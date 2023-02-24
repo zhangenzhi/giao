@@ -118,17 +118,17 @@ def obtain_da_model_opts(gnet, model_args, fake_label, noise,
 def giao(gnet, model_args, dataloader, iter_train, iter_test):    
     #GIAO
     fake_label = iter_test.get_next()["labels"]
-    noise = tf.random.normal([128, 32, 32, 1])
+    noise = tf.random.normal([128, 32, 32, 3])
     for t in range(1000):
         # Train on Dasamples
         obtain_da_model_opts(gnet=gnet, model_args=model_args, fake_label=fake_label, noise=noise,
                             iter_train=iter_train, iter_test=iter_test, dataloader=dataloader,
-                            sample_gap=5, epochs=3, giao_step=t)
+                            sample_gap=5, epochs=10, giao_step=t)
     
 def main():
     # dataset
-    dataloader_args = edict({"batch_size": 128, "epochs": 20, "da": True})
-    dataloader = MnistDataLoader(dataloader_args=dataloader_args)
+    dataloader_args = edict({"batch_size": 128, "epochs": 50, "da": True})
+    dataloader = Cifar10DataLoader(dataloader_args=dataloader_args)
     train_dataset, valid_dataset, test_dataset = dataloader.load_dataset()
 
     #Envioroment model
@@ -136,7 +136,7 @@ def main():
     
     #Generator
     # gnet = DCNN()
-    gnet = CUNet(input_shape=[32, 32, 1])
+    gnet = CUNet(input_shape=[32, 32, 3])
     
     iter_train = iter(train_dataset)
     iter_test = iter(test_dataset)

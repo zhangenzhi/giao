@@ -79,7 +79,7 @@ class DNN(tf.keras.Model):
             acts.append(tf.keras.layers.Activation(act))
         return acts
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         
         x = inputs
         x = self.flatten(x)
